@@ -1,4 +1,4 @@
-﻿create database Champions_league_Db1;
+﻿create database Champions_league_Db2;
 go;
 drop database Champions_league_Db1;
 go;
@@ -195,6 +195,12 @@ end
 
 go;
 
+create proc deleteMatch @hostclub varchar(20) , @guestclub varchar(20) 
+as 
+delete from match where match.host_club_id = dbo.retId(@hostclub) and match.guest_club_ID =dbo.retId(@guestclub)
+
+go;
+
 create view clubsWithNoMatches
 as
 select c.name 
@@ -203,7 +209,15 @@ where c.club_ID  not in ((select host_club_ID from match )
 union 
 (select guest_club_ID from match)
 )
+go;
 
+create proc deleteMatchesOnStadium @sname varchar(20) 
+as
+declare @id int 
+
+select @id = id from Stadium where @sname = name 
+
+delete from match  where match.stadium_Id = @id and match.start_date > CURRENT_TIMESTAMP
 
 
 go;
