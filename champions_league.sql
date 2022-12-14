@@ -28,12 +28,12 @@ create table System_Admin(ID int identity, name varchar(20), username varchar(20
 , primary key (ID) ,foreign key (username) references System_User2 (username) on update cascade on delete cascade)
 
 create table Match(match_ID int identity , start_time datetime, end_time datetime , host_club_ID int, guest_club_ID int, 
-stadium_ID int , primary key (match_ID) , foreign key (host_club_ID) references club(club_ID) on update cascade on delete cascade ,
-foreign key (stadium_ID) references Stadium (ID) on update cascade on delete cascade , foreign key (guest_club_ID)references club (club_ID) on delete set null )
+stadium_ID int , primary key (match_ID) , foreign key (host_club_ID) references Club(club_ID) on update cascade on delete cascade ,
+foreign key (stadium_ID) references Stadium (ID) on update cascade on delete cascade , foreign key (guest_club_ID) references Club(club_ID) on delete NO ACTION ON UPDATE NO ACTION)
 
 create table Host_Request (ID int identity,  representative_ID int, manager_ID int, match_ID int, status varchar(20) 
-,primary key (ID) , foreign key (representative_ID) references club_Representative (ID) on update cascade on delete cascade ,
-foreign key (manager_ID) references Stadium_Manager (ID) on update cascade on delete cascade, foreign key (match_ID) references Match(match_ID) on update cascade on delete cascade)
+,primary key (ID) , foreign key (representative_ID) references club_Representative (ID) on update no action on delete no action ,
+foreign key (manager_ID) references Stadium_Manager (ID) on update no action on delete no action, foreign key (match_ID) references Match(match_ID) on update cascade on delete cascade)
 
 
 create table Ticket (ID int identity , status bit, match_ID int, primary key (ID) ,
@@ -42,7 +42,6 @@ foreign key (match_ID)references Match(match_ID) on update cascade on delete cas
 create table Ticket_Buying_Transactions (fan_national_ID int, ticket_ID int 
 ,foreign key (fan_national_ID )references Fan(national_ID) on update cascade on delete cascade, foreign key (ticket_ID) references ticket (ID) on update cascade on delete cascade)
 
-exec  createAllTables ;
 go
 
 
@@ -60,9 +59,6 @@ drop table System_Admin
 drop table Sports_association_manager
 drop table Stadium
 drop table System_User2
-
-exec dropAllTables;
-
 go
 
 create procedure clearAllTables 
@@ -79,9 +75,11 @@ truncate table Host_Request
 truncate table Club
 truncate table Ticket
 truncate table Match
-
 go 
 
+exec createAllTables;
+
+go
 create view allAssocManagers
 as
 select s.username, su.password, s.name 
@@ -207,14 +205,13 @@ create proc deleteMatchesOnStadium @sname varchar(20)
 as
 declare @id int 
 select @id = id from Stadium where @sname = name 
-delete from Match where Match.stadium_Id = @id and Match.start_time > CURRENT_TIMESTAMP
+delete from Match where Match.stadium_Id = @id and Match.start_time > CURRENT_TIMESTAMP;
+go
 
-
-go;
 create proc addClub @name varchar(20) , @location varchar(20) 
 as 
-insert into club values (@name,@location)
-go;
+insert into Club values (@name, @location);
+go
 
 create function [getMatchId] (@host_club_name varchar(20), @guest_club_name varchar(20) , @start_time datetime )
 returns int 
@@ -228,7 +225,7 @@ where m.host_club_ID = @hostId
 and m.guest_club_ID = @guestId
 and m.start_time = @start_time
 return @matchId
-end
+end;
 go
 
 
@@ -236,44 +233,42 @@ create proc addTicket @host_club varchar(20) , @guest_club varchar(20) , @start_
 as
 declare @matchId int 
 exec @matchId = dbo.getMatchId @host_club ,@guest_club, @start_time
-insert into Ticket values (null, @matchId)
-
-go;
+insert into Ticket values (null, @matchId);
+go
 
 create proc deleteClub @name varchar(20)
 as 
-delete from club where name =  @name 
-go;
+delete from club where name =  @name ;
+go
 
 create proc  addStadium @name varchar(20) , @location varchar(20) , @capacity int 
 as 
-insert into Stadium values (@name, @location ,@capacity , null)
-go;
+insert into Stadium values (@name, @location ,@capacity , null);
+go
 
 create proc deleteStadium @name varchar(20)
 as 
-delete from Stadium where name = @name 
+delete from Stadium where name = @name ;
+go
 
-go;
 create proc blockFan @id varchar(20)
 as 
-update Fan set status= 0 where national_ID = @id 
+update Fan set status= 0 where national_ID = @id ;
+go
 
-go;
 create proc unblockFan @id varchar(20)
 as 
-update Fan set status= 1 where national_ID=@id 
-go;
+update Fan set status= 1 where national_ID=@id ;
+go
 
-create proc addRepresentative @name varchar(20) , 
-@clubname varchar(20) , @username varchar(20), @password varchar(20)
+create proc addRepresentative
+@name varchar(20), @clubname varchar(20) , @username varchar(20), @password varchar(20)
 as
 declare @id int 
 exec @id = dbo.getClubId @clubname 
 insert into System_User2 values (@username,@password)
-insert into Club_Representative values (@name, @id, @username)
-
-go;
+insert into Club_Representative values (@name, @id, @username);
+go
 
 create function[viewAvailableStadiumsOn]( @date datetime )
 returns @T table (name varchar(20) , location varchar(20) , capacity int)
@@ -285,9 +280,8 @@ select s.name, s.location, s.capacity
 from Stadium s ,Match m
 where s.status = 1 and m.stadium_ID = s.ID and m.stadium_ID not in (select m.stadium_ID where @date between m.start_time and m.end_time)
 return
-end 
-
-go;
+end ;
+go
 
 create proc addHostRequest @club_name varchar(20) ,@stadium_name varchar(20) , @start_time datetime
 as
@@ -295,7 +289,7 @@ declare @representative_id int , @manager_id int ,@match_id int
 exec @representative_id = dbo.getRepresentativeId @club_name 
 exec @manager_id= dbo.getStadiumManagerId @stadium_name 
 exec @match_id = dbo.getMatchId @club_name ,null ,@start_time
-insert into Host_Request values(@representative_id, @manager_id, null);
+insert into Host_Request values(@representative_id, @manager_id, @match_id, null);
 go
 
 
@@ -495,7 +489,7 @@ create view clubsNeverMatched
 AS
 select c1.name as club1_name, c2.name as club2_name from Club c1 cross join Club c2 where c1.name <> c2.name 
 except
-select c1.name from Club c1
+select c1.name, c2.name from Club c1
 inner join Match m
 on c1.club_ID = m.host_club_ID
 inner join club c2
@@ -584,16 +578,17 @@ hr.match_ID = m.match_ID and
 hr.manager_ID = @stadium_manager_id and
 hr.representative_ID = @representative_id
 return
-end
+end;
+go
 
-go;
+
 create proc dropAllProceduresFunctionsViews
 as 
 drop procedure createAllTables 
 drop procedure dropAllTables
 drop procedure clearAllTables
 drop view allAssocManagers
-drop  view allClubRepresentatives
+drop view allClubRepresentatives
 drop view allStadiumManagers
 drop view allFans
 drop view allMatches 
@@ -637,7 +632,5 @@ drop function [clubsNeverPlayed]
 drop function [getTicketsSoldPerMatch]
 drop function [matchWithHighestAttendance]
 drop function[matchesRankedByAttendance]
-drop function [requestsFromClub]
+drop function [requestsFromClub];
 
-go;
-drop database Champions_league_Db1;
