@@ -1,4 +1,4 @@
-﻿--CREATE DATABASE Champions_league_Db;
+CREATE DATABASE Champions_league_Db;
 
 go
 create procedure createAllTables 
@@ -63,18 +63,18 @@ go
 
 create procedure clearAllTables 
 as
-truncate table System_User2
-truncate table Fan
-truncate table Stadium_Manager
-truncate table Club_Representative
-truncate table Sports_association_manager
-truncate table System_Admin
-truncate table Ticket_Buying_Transactions
-truncate table Stadium
-truncate table Host_Request
-truncate table Club
-truncate table Ticket
-truncate table Match
+delete from Host_Request
+delete from Stadium_Manager
+delete from Club_Representative
+delete from Ticket_Buying_Transactions
+delete from Fan
+delete from Ticket
+delete from Match
+delete from Club
+delete from System_Admin
+delete from Sports_association_manager
+delete from Stadium
+delete from System_User2
 go 
 
 exec createAllTables;
